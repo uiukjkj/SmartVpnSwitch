@@ -1,7 +1,6 @@
 name: Extract SmartVpnSwitch
 
-on:
-  workflow_dispatch:
+on: push
 
 jobs:
   extract:
