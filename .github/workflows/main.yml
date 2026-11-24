@@ -1,8 +1,9 @@
-name: Build APK
+name: Build Android APK
 
 on:
   workflow_dispatch:
   push:
+    branches: [main]
     paths:
       - "SmartVpnSwitch-Android14.zip"
       - ".github/workflows/build-apk.yml"
@@ -10,40 +11,34 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-
     steps:
-      - name: Получить репозиторий
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Установить Java
+      - name: Set up Java
         uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: "17"
 
-      - name: Установить Android SDK
+      - name: Set up Android SDK
         uses: android-actions/setup-android@v3
 
-      - name: Распаковать архив и найти проект
+      - name: Extract project
         run: |
-          unzip -q SmartVpnSwitch-Android14.zip -d extracted
-          WRAPPER="$(find extracted -type f -name gradlew -print -quit)"
-          if [ -z "$WRAPPER" ]; then
-            echo "В архиве не найден gradlew — возможно, в ZIP нет Gradle-проекта."
-            find extracted -maxdepth 4 -type f | head -100
-            exit 1
-          fi
+          unzip -q SmartVpnSwitch-Android14.zip -d source
+          WRAPPER="$(find source -type f -name gradlew -print -quit)"
+          test -n "$WRAPPER"
           echo "PROJECT_DIR=$(dirname "$WRAPPER")" >> "$GITHUB_ENV"
 
-      - name: Собрать APK
+      - name: Build debug APK
         run: |
           cd "$PROJECT_DIR"
-          chmod +x ./gradlew
+          chmod +x gradlew
           ./gradlew assembleDebug
 
-      - name: Сохранить APK как артефакт
+      - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: SmartVpnSwitch-debug-apk
-          path: extracted/**/build/outputs/apk/debug/*.apk
+          name: SmartVpnSwitch-debug
+          path: "**/build/outputs/apk/debug/*.apk"
           if-no-files-found: error
