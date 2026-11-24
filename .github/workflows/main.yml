@@ -23,24 +23,48 @@ jobs:
           distribution: temurin
           java-version: "17"
 
-      - name: Распаковать проект и найти папку сборки
+      - name: Распаковать проект
         run: |
+          rm -rf source
           unzip -q SmartVpnSwitch-Android14.zip -d source
 
           SETTINGS="$(find source -type f \( -name settings.gradle -o -name settings.gradle.kts \) -print -quit)"
           if [ -z "$SETTINGS" ]; then
             echo "Не найден settings.gradle или settings.gradle.kts"
-            find source -maxdepth 5 -type f | sort | head -200
             exit 1
           fi
 
           PROJECT_DIR="$(dirname "$SETTINGS")"
-          if [ ! -f "$PROJECT_DIR/app/build.gradle" ] && [ ! -f "$PROJECT_DIR/app/build.gradle.kts" ]; then
-            echo "В папке проекта не найден app/build.gradle или app/build.gradle.kts"
-            exit 1
-          fi
-
           echo "PROJECT_DIR=$PROJECT_DIR" >> "$GITHUB_ENV"
+
+      - name: Исправить конфликт Android Manifest
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import os
+
+          manifest = Path(os.environ["PROJECT_DIR"]) / "app/src/main/AndroidManifest.xml"
+          text = manifest.read_text(encoding="utf-8")
+
+          text = text.replace(
+              '<manifest xmlns:android="http://schemas.android.com/apk/res/android">',
+              '<manifest xmlns:android="http://schemas.android.com/apk/res/android"\n'
+              '    xmlns:tools="http://schemas.android.com/tools">'
+          )
+
+          needle = 'android:name="com.wireguard.android.backend.GoBackend$VpnService"\n'
+          if needle in text:
+              text = text.replace(
+                  needle,
+                  needle + '            tools:replace="android:exported"\n',
+                  1
+              )
+          else:
+              raise RuntimeError("Сервис WireGuard VpnService не найден")
+
+          manifest.write_text(text, encoding="utf-8")
+          print(f"Исправлен: {manifest}")
+          PY
 
       - name: Установить Gradle 8.7
         run: |
@@ -50,16 +74,16 @@ jobs:
           unzip -q /tmp/gradle.zip -d /tmp
           echo "/tmp/gradle-8.7/bin" >> "$GITHUB_PATH"
 
-      - name: Установить компоненты Android SDK
+      - name: Установить Android SDK
         run: |
           SDKMANAGER="$(find "$ANDROID_HOME/cmdline-tools" -type f -name sdkmanager | sort | tail -n 1)"
-          if [ -z "$SDKMANAGER" ]; then
-            echo "Не найден Android SDK Manager"
-            exit 1
-          fi
+          test -n "$SDKMANAGER"
 
           yes | "$SDKMANAGER" --licenses >/dev/null || true
-          "$SDKMANAGER" "platform-tools" "platforms;android-34" "build-tools;34.0.0"
+          "$SDKMANAGER" \
+            "platform-tools" \
+            "platforms;android-34" \
+            "build-tools;34.0.0"
 
       - name: Собрать debug APK
         run: |
