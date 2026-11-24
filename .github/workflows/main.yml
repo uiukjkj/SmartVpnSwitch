@@ -23,51 +23,52 @@ jobs:
           distribution: temurin
           java-version: "17"
 
-      - name: Проверить архив
+      - name: Распаковать проект и найти папку сборки
         run: |
-          ls -lh
-          file SmartVpnSwitch-Android14.zip
-          unzip -t SmartVpnSwitch-Android14.zip
-
-      - name: Распаковать проект
-        run: |
-          rm -rf source
           unzip -q SmartVpnSwitch-Android14.zip -d source
 
-          WRAPPER="$(find source -type f -name gradlew -print -quit)"
-
-          if [ -z "$WRAPPER" ]; then
-            echo "Файл gradlew не найден. Содержимое source:"
+          SETTINGS="$(find source -type f \( -name settings.gradle -o -name settings.gradle.kts \) -print -quit)"
+          if [ -z "$SETTINGS" ]; then
+            echo "Не найден settings.gradle или settings.gradle.kts"
             find source -maxdepth 5 -type f | sort | head -200
             exit 1
           fi
 
-          echo "PROJECT_DIR=$(dirname "$WRAPPER")" >> "$GITHUB_ENV"
+          PROJECT_DIR="$(dirname "$SETTINGS")"
+          if [ ! -f "$PROJECT_DIR/app/build.gradle" ] && [ ! -f "$PROJECT_DIR/app/build.gradle.kts" ]; then
+            echo "В папке проекта не найден app/build.gradle или app/build.gradle.kts"
+            exit 1
+          fi
 
-      - name: Установить Android SDK
+          echo "PROJECT_DIR=$PROJECT_DIR" >> "$GITHUB_ENV"
+
+      - name: Установить Gradle 8.7
+        run: |
+          curl -L --fail \
+            https://services.gradle.org/distributions/gradle-8.7-bin.zip \
+            -o /tmp/gradle.zip
+          unzip -q /tmp/gradle.zip -d /tmp
+          echo "/tmp/gradle-8.7/bin" >> "$GITHUB_PATH"
+
+      - name: Установить компоненты Android SDK
         run: |
           SDKMANAGER="$(find "$ANDROID_HOME/cmdline-tools" -type f -name sdkmanager | sort | tail -n 1)"
-
           if [ -z "$SDKMANAGER" ]; then
-            echo "sdkmanager не найден"
+            echo "Не найден Android SDK Manager"
             exit 1
           fi
 
           yes | "$SDKMANAGER" --licenses >/dev/null || true
-          "$SDKMANAGER" \
-            "platform-tools" \
-            "platforms;android-34" \
-            "build-tools;34.0.0"
+          "$SDKMANAGER" "platform-tools" "platforms;android-34" "build-tools;34.0.0"
 
-      - name: Собрать APK
+      - name: Собрать debug APK
         run: |
           cd "$PROJECT_DIR"
-          chmod +x gradlew
-          ./gradlew assembleDebug --stacktrace
+          gradle assembleDebug --stacktrace
 
       - name: Загрузить APK
         uses: actions/upload-artifact@v4
         with:
           name: SmartVpnSwitch-debug-apk
-          path: "**/build/outputs/apk/debug/*.apk"
+          path: "source/**/build/outputs/apk/debug/*.apk"
           if-no-files-found: error
