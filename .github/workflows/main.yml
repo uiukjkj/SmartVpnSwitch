@@ -1,4 +1,4 @@
-name: Extract and Inspect SmartVpnSwitch
+name: Extract SmartVpnSwitch
 
 on:
 workflow_dispatch:
@@ -8,49 +8,32 @@ extract:
 runs-on: ubuntu-latest
 
 steps:
-  - name: Checkout repository
+  - name: Checkout
     uses: actions/checkout@v4
 
-  - name: Check ZIP archive
-    run: |
-      if [ ! -f "SmartVpnSwitch-Android14.zip" ]; then
-        echo "ERROR: Archive not found!"
-        ls -lah
-        exit 1
-      fi
-
-      unzip -t "SmartVpnSwitch-Android14.zip"
-
-  - name: Extract archive
+  - name: Extract ZIP
     run: |
       mkdir -p extracted
-      unzip -o "SmartVpnSwitch-Android14.zip" -d extracted
+      unzip -t SmartVpnSwitch-Android14.zip
+      unzip -o SmartVpnSwitch-Android14.zip -d extracted
 
-  - name: Show all project files
+  - name: List all files
     run: |
       echo "===== ALL FILES ====="
       find extracted -type f | sort
 
       echo "===== SOURCE CODE ====="
-      find extracted -type f \
-        -name "*.kt" -o \
-        -name "*.java" \
-      | sort
+      find extracted -type f -name "*.kt" -o -name "*.java"
 
       echo "===== RESOURCES ====="
-      find extracted -type d -name "res" -print
+      find extracted -type d -name res
 
       echo "===== GRADLE FILES ====="
-      find extracted -type f \
-        -name "*.gradle" -o \
-        -name "*.gradle.kts" -o \
-        -name "gradlew" \
-      -print
+      find extracted -type f -name "*.gradle" -o -name "*.gradle.kts" -o -name gradlew
 
   - name: Upload extracted project
     uses: actions/upload-artifact@v4
     with:
       name: SmartVpnSwitch-extracted
-      path: extracted/
-      if-no-files-found: error
+      path: extracted
       retention-days: 3
