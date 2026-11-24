@@ -1,4 +1,4 @@
-name: Inspect Android Project
+name: Inspect SmartVpnSwitch
 
 on:
   workflow_dispatch:
@@ -8,17 +8,30 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Extract archive
+      - name: Extract project
         run: |
-          mkdir project
           unzip -q SmartVpnSwitch-Android14.zip -d project
 
-      - name: Inspect files
+      - name: Read project files
         run: |
-          echo "===== FILES ====="
-          find project -maxdepth 5 -type f | head -300
-          echo "===== DIRECTORIES ====="
-          find project -maxdepth 4 -type d
+          cd project/SmartVpnSwitch
+
+          echo "===== README ====="
+          cat README.md
+
+          echo "===== ROOT GRADLE ====="
+          cat build.gradle.kts
+
+          echo "===== APP GRADLE ====="
+          cat app/build.gradle.kts
+
+          echo "===== SETTINGS ====="
+          cat settings.gradle.kts
+
+          echo "===== MANIFEST ====="
+          cat app/src/main/AndroidManifest.xml
+
+          echo "===== ALL FILES ====="
+          find . -type f
