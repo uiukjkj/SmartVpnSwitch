@@ -1,33 +1,35 @@
-name: Extract SmartVpnSwitch
+name: Prepare APK Build
 
 on: push
 
 jobs:
-  extract:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
+inspect:
+runs-on: ubuntu-latest
 
-      - name: Extract archive
-        run: |
-          mkdir -p extracted
-          unzip -t SmartVpnSwitch-Android14.zip
-          unzip -o SmartVpnSwitch-Android14.zip -d extracted
+steps:
+  - name: Checkout
+    uses: actions/checkout@v4
 
-      - name: Show all files
-        run: |
-          echo "===== ALL FILES ====="
-          find extracted -type f | sort
-          echo "===== KOTLIN AND JAVA ====="
-          find extracted -type f \( -name "*.kt" -o -name "*.java" \)
-          echo "===== RESOURCES ====="
-          find extracted -type d -name res
-          echo "===== GRADLE ====="
-          find extracted -type f \( -name "*.gradle" -o -name "*.gradle.kts" -o -name "gradlew" \)
+  - name: Extract project
+    run: |
+      mkdir -p project
+      unzip -o SmartVpnSwitch-Android14.zip -d project
 
-      - name: Upload extracted project
-        uses: actions/upload-artifact@v4
-        with:
-          name: SmartVpnSwitch-extracted
-          path: extracted/
-          retention-days: 3
+  - name: Show Gradle configuration
+    run: |
+      cd project/SmartVpnSwitch
+
+      echo "===== GRADLE WRAPPER ====="
+      cat gradle/wrapper/gradle-wrapper.properties
+
+      echo "===== ROOT BUILD ====="
+      cat build.gradle.kts
+
+      echo "===== APP BUILD ====="
+      cat app/build.gradle.kts
+
+      echo "===== SETTINGS ====="
+      cat settings.gradle.kts
+
+      echo "===== README ====="
+      cat README.md
