@@ -1,53 +1,49 @@
-name: Build SmartVpnSwitch APK
+name: Build APK
 
 on:
-  push:
   workflow_dispatch:
+  push:
+    paths:
+      - "SmartVpnSwitch-Android14.zip"
+      - ".github/workflows/build-apk.yml"
 
 jobs:
   build:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@v5
+      - name: Получить репозиторий
+        uses: actions/checkout@v4
 
-      - name: Setup Java
-        uses: actions/setup-java@v5
+      - name: Установить Java
+        uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: '17'
+          java-version: "17"
 
-      - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v6
-        with:
-          gradle-version: '8.7'
+      - name: Установить Android SDK
+        uses: android-actions/setup-android@v3
 
-      - name: Setup Android SDK
-        uses: android-actions/setup-android@v4
-
-      - name: Install Android SDK components
+      - name: Распаковать архив и найти проект
         run: |
-          sdkmanager --licenses
-          sdkmanager --install \
-            "platform-tools" \
-            "platforms;android-34" \
-            "build-tools;34.0.0"
+          unzip -q SmartVpnSwitch-Android14.zip -d extracted
+          WRAPPER="$(find extracted -type f -name gradlew -print -quit)"
+          if [ -z "$WRAPPER" ]; then
+            echo "В архиве не найден gradlew — возможно, в ZIP нет Gradle-проекта."
+            find extracted -maxdepth 4 -type f | head -100
+            exit 1
+          fi
+          echo "PROJECT_DIR=$(dirname "$WRAPPER")" >> "$GITHUB_ENV"
 
-      - name: Extract project
+      - name: Собрать APK
         run: |
-          mkdir -p project
-          unzip -o SmartVpnSwitch-Android14.zip -d project
+          cd "$PROJECT_DIR"
+          chmod +x ./gradlew
+          ./gradlew assembleDebug
 
-      - name: Build APK
-        run: |
-          cd project/SmartVpnSwitch
-          gradle assembleDebug --stacktrace
-
-      - name: Upload APK
+      - name: Сохранить APK как артефакт
         uses: actions/upload-artifact@v4
         with:
-          name: SmartVpnSwitch-APK
-          path: project/SmartVpnSwitch/app/build/outputs/apk/debug/*.apk
+          name: SmartVpnSwitch-debug-apk
+          path: extracted/**/build/outputs/apk/debug/*.apk
           if-no-files-found: error
-          retention-days: 7
