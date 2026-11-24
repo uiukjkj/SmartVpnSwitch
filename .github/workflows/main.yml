@@ -1,69 +1,56 @@
-name: Extract SmartVpnSwitch
+name: Extract and Inspect SmartVpnSwitch
 
 on:
-  workflow_dispatch:
+workflow_dispatch:
 
 jobs:
-  extract:
-    runs-on: ubuntu-latest
+extract:
+runs-on: ubuntu-latest
 
-    steps:
-      - name: Download repository
-        uses: actions/checkout@v4
+steps:
+  - name: Checkout repository
+    uses: actions/checkout@v4
 
-      - name: Extract all archives
-        run: |
-          python3 - <<'PY'
-          import zipfile
-          from pathlib import Path
+  - name: Check ZIP archive
+    run: |
+      if [ ! -f "SmartVpnSwitch-Android14.zip" ]; then
+        echo "ERROR: Archive not found!"
+        ls -lah
+        exit 1
+      fi
 
-          archive = Path("SmartVpnSwitch-Android14.zip")
-          output = Path("extracted")
+      unzip -t "SmartVpnSwitch-Android14.zip"
 
-          if not archive.exists():
-              raise SystemExit("ERROR: ZIP archive not found!")
+  - name: Extract archive
+    run: |
+      mkdir -p extracted
+      unzip -o "SmartVpnSwitch-Android14.zip" -d extracted
 
-          output.mkdir(exist_ok=True)
+  - name: Show all project files
+    run: |
+      echo "===== ALL FILES ====="
+      find extracted -type f | sort
 
-          def safe_extract(zf, destination):
-              destination = destination.resolve()
-              for item in zf.infolist():
-                  target = (destination / item.filename).resolve()
-                  if not target.is_relative_to(destination):
-                      raise RuntimeError("Unsafe ZIP path: " + item.filename)
-                  zf.extract(item, destination)
+      echo "===== SOURCE CODE ====="
+      find extracted -type f \
+        -name "*.kt" -o \
+        -name "*.java" \
+      | sort
 
-          queue = [(archive, output)]
+      echo "===== RESOURCES ====="
+      find extracted -type d -name "res" -print
 
-          while queue:
-              current, destination = queue.pop(0)
+      echo "===== GRADLE FILES ====="
+      find extracted -type f \
+        -name "*.gradle" -o \
+        -name "*.gradle.kts" -o \
+        -name "gradlew" \
+      -print
 
-              print(f"\nExtracting: {current}")
-
-              with zipfile.ZipFile(current) as zf:
-                  safe_extract(zf, destination)
-
-              for nested in destination.rglob("*.zip"):
-                  if nested != current:
-                      nested_output = nested.parent / (nested.stem + "_unzipped")
-                      if not nested_output.exists():
-                          nested_output.mkdir()
-                          queue.append((nested, nested_output))
-
-          print("\n===== ALL EXTRACTED FILES =====")
-
-          for item in sorted(output.rglob("*")):
-              if item.is_file():
-                  print(item)
-
-          print("\n===== GRADLE PROJECT FILES =====")
-
-          for item in output.rglob("settings.gradle*"):
-              print("PROJECT ROOT:", item.parent)
-
-          print("\n===== KOTLIN AND JAVA SOURCES =====")
-
-          for item in output.rglob("*"):
-              if item.is_file() and item.suffix in (".kt", ".java"):
-                  print(item)
-          PY
+  - name: Upload extracted project
+    uses: actions/upload-artifact@v4
+    with:
+      name: SmartVpnSwitch-extracted
+      path: extracted/
+      if-no-files-found: error
+      retention-days: 3
