@@ -1,37 +1,69 @@
-name: Inspect SmartVpnSwitch
+name: Extract SmartVpnSwitch
 
 on:
   workflow_dispatch:
 
 jobs:
-  inspect:
+  extract:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Download repository
+        uses: actions/checkout@v4
 
-      - name: Extract project
+      - name: Extract all archives
         run: |
-          unzip -q SmartVpnSwitch-Android14.zip -d project
+          python3 - <<'PY'
+          import zipfile
+          from pathlib import Path
 
-      - name: Read project files
-        run: |
-          cd project/SmartVpnSwitch
+          archive = Path("SmartVpnSwitch-Android14.zip")
+          output = Path("extracted")
 
-          echo "===== README ====="
-          cat README.md
+          if not archive.exists():
+              raise SystemExit("ERROR: ZIP archive not found!")
 
-          echo "===== ROOT GRADLE ====="
-          cat build.gradle.kts
+          output.mkdir(exist_ok=True)
 
-          echo "===== APP GRADLE ====="
-          cat app/build.gradle.kts
+          def safe_extract(zf, destination):
+              destination = destination.resolve()
+              for item in zf.infolist():
+                  target = (destination / item.filename).resolve()
+                  if not target.is_relative_to(destination):
+                      raise RuntimeError("Unsafe ZIP path: " + item.filename)
+                  zf.extract(item, destination)
 
-          echo "===== SETTINGS ====="
-          cat settings.gradle.kts
+          queue = [(archive, output)]
 
-          echo "===== MANIFEST ====="
-          cat app/src/main/AndroidManifest.xml
+          while queue:
+              current, destination = queue.pop(0)
 
-          echo "===== ALL FILES ====="
-          find . -type f
+              print(f"\nExtracting: {current}")
+
+              with zipfile.ZipFile(current) as zf:
+                  safe_extract(zf, destination)
+
+              for nested in destination.rglob("*.zip"):
+                  if nested != current:
+                      nested_output = nested.parent / (nested.stem + "_unzipped")
+                      if not nested_output.exists():
+                          nested_output.mkdir()
+                          queue.append((nested, nested_output))
+
+          print("\n===== ALL EXTRACTED FILES =====")
+
+          for item in sorted(output.rglob("*")):
+              if item.is_file():
+                  print(item)
+
+          print("\n===== GRADLE PROJECT FILES =====")
+
+          for item in output.rglob("settings.gradle*"):
+              print("PROJECT ROOT:", item.parent)
+
+          print("\n===== KOTLIN AND JAVA SOURCES =====")
+
+          for item in output.rglob("*"):
+              if item.is_file() and item.suffix in (".kt", ".java"):
+                  print(item)
+          PY
