@@ -3,33 +3,25 @@ name: Prepare APK Build
 on: push
 
 jobs:
-inspect:
-runs-on: ubuntu-latest
+  inspect:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
 
-steps:
-  - name: Checkout
-    uses: actions/checkout@v4
+      - name: Extract project
+        run: |
+          mkdir -p project
+          unzip -o SmartVpnSwitch-Android14.zip -d project
 
-  - name: Extract project
-    run: |
-      mkdir -p project
-      unzip -o SmartVpnSwitch-Android14.zip -d project
-
-  - name: Show Gradle configuration
-    run: |
-      cd project/SmartVpnSwitch
-
-      echo "===== GRADLE WRAPPER ====="
-      cat gradle/wrapper/gradle-wrapper.properties
-
-      echo "===== ROOT BUILD ====="
-      cat build.gradle.kts
-
-      echo "===== APP BUILD ====="
-      cat app/build.gradle.kts
-
-      echo "===== SETTINGS ====="
-      cat settings.gradle.kts
-
-      echo "===== README ====="
-      cat README.md
+      - name: Show Gradle configuration
+        run: |
+          cd project/SmartVpnSwitch
+          echo "===== GRADLE WRAPPER ====="
+          cat gradle/wrapper/gradle-wrapper.properties
+          echo "===== ROOT BUILD ====="
+          cat build.gradle.kts
+          echo "===== APP BUILD ====="
+          cat app/build.gradle.kts
+          echo "===== SETTINGS ====="
+          cat settings.gradle.kts
