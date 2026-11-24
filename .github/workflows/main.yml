@@ -1,19 +1,55 @@
-- name: Setup Android SDK
+name: Build SmartVpnSwitch APK
+
+on:
+  push:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup Java
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.7'
+
+      - name: Setup Android SDK
         uses: android-actions/setup-android@v3
 
       - name: Install Android SDK components
         run: |
           set -e
-
-          echo "Проверка sdkmanager..."
-          which sdkmanager
           sdkmanager --version
-
-          echo "Установка Android SDK..."
+          sdkmanager --sdk_root="$ANDROID_HOME" --licenses
           sdkmanager --sdk_root="$ANDROID_HOME" \
             "platform-tools" \
             "platforms;android-34" \
             "build-tools;34.0.0"
 
-          echo "Проверка установки..."
-          sdkmanager --list_installed
+      - name: Extract project
+        run: |
+          mkdir -p project
+          unzip -o SmartVpnSwitch-Android14.zip -d project
+
+      - name: Build APK
+        run: |
+          cd project/SmartVpnSwitch
+          gradle assembleDebug --stacktrace
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: SmartVpnSwitch-APK
+          path: project/SmartVpnSwitch/app/build/outputs/apk/debug/*.apk
+          if-no-files-found: error
+          retention-days: 7
