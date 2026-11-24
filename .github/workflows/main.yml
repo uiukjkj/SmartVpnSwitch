@@ -1,39 +1,33 @@
 name: Extract SmartVpnSwitch
 
-on:
-workflow_dispatch:
+on: [workflow_dispatch]
 
 jobs:
-extract:
-runs-on: ubuntu-latest
+  extract:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
 
-steps:
-  - name: Checkout
-    uses: actions/checkout@v4
+      - name: Extract archive
+        run: |
+          mkdir -p extracted
+          unzip -t SmartVpnSwitch-Android14.zip
+          unzip -o SmartVpnSwitch-Android14.zip -d extracted
 
-  - name: Extract ZIP
-    run: |
-      mkdir -p extracted
-      unzip -t SmartVpnSwitch-Android14.zip
-      unzip -o SmartVpnSwitch-Android14.zip -d extracted
+      - name: Show all files
+        run: |
+          echo "===== ALL FILES ====="
+          find extracted -type f | sort
+          echo "===== KOTLIN AND JAVA ====="
+          find extracted -type f \( -name "*.kt" -o -name "*.java" \)
+          echo "===== RESOURCES ====="
+          find extracted -type d -name res
+          echo "===== GRADLE ====="
+          find extracted -type f \( -name "*.gradle" -o -name "*.gradle.kts" -o -name "gradlew" \)
 
-  - name: List all files
-    run: |
-      echo "===== ALL FILES ====="
-      find extracted -type f | sort
-
-      echo "===== SOURCE CODE ====="
-      find extracted -type f -name "*.kt" -o -name "*.java"
-
-      echo "===== RESOURCES ====="
-      find extracted -type d -name res
-
-      echo "===== GRADLE FILES ====="
-      find extracted -type f -name "*.gradle" -o -name "*.gradle.kts" -o -name gradlew
-
-  - name: Upload extracted project
-    uses: actions/upload-artifact@v4
-    with:
-      name: SmartVpnSwitch-extracted
-      path: extracted
-      retention-days: 3
+      - name: Upload extracted project
+        uses: actions/upload-artifact@v4
+        with:
+          name: SmartVpnSwitch-extracted
+          path: extracted/
+          retention-days: 3
